@@ -1,32 +1,32 @@
-# Use official Node.js runtime as base image
-FROM node:18-alpine
+# Use official Python 3.11 slim image
+FROM python:3.11-slim
 
-# Set working directory in container
+# Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy dependency file first for better layer caching
+COPY requirements.txt ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY . .
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S mcpuser -u 1001 -G nodejs && \
-    chown -R mcpuser:nodejs /app
+RUN addgroup --gid 1001 appgroup && \
+    adduser --disabled-password --uid 1001 --ingroup appgroup appuser && \
+    chown -R appuser:appgroup /app
 
 # Switch to non-root user
-USER mcpuser
+USER appuser
 
-# Expose port (your server runs on 8000, not 3000)
+# Expose port
 EXPOSE 8000
 
-# Add health check
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:8000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
+    CMD python -c "import httpx; r = httpx.get('http://localhost:8000/health'); exit(0 if r.status_code == 200 else 1)"
 
 # Start the application
-CMD ["node", "server.js"]
+CMD ["python", "server.py"]
