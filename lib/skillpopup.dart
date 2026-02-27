@@ -1,138 +1,189 @@
-import 'package:barter_system/notification.dart';
-import 'package:barter_system/popup.dart';
-import 'package:barter_system/profile.dart';
 import 'package:flutter/material.dart';
-import 'notification_service.dart';
+import 'package:skillsocket/notification.dart';
+import 'package:skillsocket/popup.dart';
+import 'package:skillsocket/profile.dart';
 
-class SkillMatchApp extends StatelessWidget {
+class SkillMatchApp extends StatefulWidget {
   const SkillMatchApp({super.key});
+
   @override
-  Widget build(BuildContext context) {
-    return HomeScreen(); 
-  }
+  State<SkillMatchApp> createState() => _SkillMatchAppState();
 }
 
+class _SkillMatchAppState extends State<SkillMatchApp> {
+  final _formKey = GlobalKey<FormState>();
+  final requireController = TextEditingController();
+  final offerController = TextEditingController();
 
-class HomeScreen extends StatelessWidget {
-  final TextEditingController requireController = TextEditingController();
-  final TextEditingController offerController = TextEditingController();
+  // Regex allows alphabets, spaces, +, -, .
+  final RegExp skillRegex = RegExp(r"^[a-zA-Z\s\+\-\.]{2,}$");
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-   appBar: AppBar(
-        centerTitle: true,
-        title: Text(
-          'APP NAME',
-          style: TextStyle(
-              fontSize: 32,
-              fontStyle: FontStyle.italic,
-              color: Color.fromARGB(255, 255, 255, 255)),
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xFFB6E1F0), Color(0xFF66B7D2), Color(0xFF123b53)],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
         ),
-        backgroundColor: Color(0xFF56195B),
-        
-        iconTheme:
-            IconThemeData(color: const Color.fromARGB(255, 255, 255, 255)),
-        actions: [
-          IconButton(
+      ),
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: AppBar(
+          centerTitle: true,
+          title: const Text(
+            'SkillSocket',
+            style: TextStyle(
+              fontSize: 20,
+              //fontStyle: FontStyle.italic,
+              color: Colors.white,
+            ),
+          ),
+          backgroundColor: const Color(0xFF123b53),
+          iconTheme: const IconThemeData(color: Colors.white),
+          actions: [
+            IconButton(
               onPressed: () {
                 Navigator.push(context,
                     MaterialPageRoute(builder: (context) => Notifications()));
               },
-              icon: Icon(Icons.notifications)),
-          IconButton(
+              icon: const Icon(Icons.notifications),
+            ),
+            IconButton(
               onPressed: () {
                 Navigator.push(context,
                     MaterialPageRoute(builder: (context) => Profile()));
               },
-              icon: Icon(Icons.person_rounded)),
-        ],
-      ),
-      body: Center(
-        child: Container(
-          padding: EdgeInsets.all(20),
-          margin: EdgeInsets.symmetric(horizontal: 30),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFFB575A1), Color(0xFF5D1A6A)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+              icon: const Icon(Icons.person_rounded),
             ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: requireController,
-                decoration: InputDecoration(
-                  hintText: 'Skill you require',
-                  filled: true,
-                  fillColor: Colors.white.withOpacity(0.3),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
+          ],
+        ),
+        body: Container(
+          width: double.infinity,
+          decoration: const BoxDecoration(color: Colors.white
+              /*: LinearGradient(
+              colors: [Color(0xFFB6E1F0),Color(0xFF66B7D2), Color(0xFF123b53)],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),*/
               ),
-              SizedBox(height: 20),
-              TextField(
-                controller: offerController,
-                decoration: InputDecoration(
-                  hintText: 'Skill you offer',
-                  filled: true,
-                  fillColor: Colors.white.withOpacity(0.3),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(20),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              margin: const EdgeInsets.symmetric(horizontal: 30),
+              decoration: BoxDecoration(
+                color: Color(0xFFB6E1F0),
+                borderRadius: BorderRadius.circular(20),
               ),
-              SizedBox(height: 30),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFF5D1A6A),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Enter to Match!',
+                      style: TextStyle(fontSize: 16, color: Colors.black87),
                     ),
-                    elevation: 6,
-                  ),
-                  onPressed: () async {
-                    final String requiredSkill = requireController.text.trim();
-                    final String offeredSkill = offerController.text.trim();
-                    if (requiredSkill.isNotEmpty && offeredSkill.isNotEmpty) {
-                      await NotificationService().showHeadsUp(
-                        title: 'Skill match possible',
-                        body: 'Offer: '+offeredSkill+' • Need: '+requiredSkill,
-                      );
-                    }
-                    Navigator.push(context, MaterialPageRoute(builder: (context)=>ProfileEditScreen()));
-                  },
-                  child: Text("NEXT",style: TextStyle(color: Colors.white),),
+                    const SizedBox(height: 25),
+
+                    // Skill Required
+                    Row(
+                      children: const [
+                        Text(
+                          'Skill Required',
+                          style: TextStyle(fontSize: 16, color: Colors.black87),
+                        ),
+                      ],
+                    ),
+                    TextFormField(
+                      controller: requireController,
+                      decoration: const InputDecoration(
+                        hintText: 'Skill you require',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(20)),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return "Please enter a required skill";
+                        } else if (!skillRegex.hasMatch(value.trim())) {
+                          return "Enter a valid skill (letters, +, -, . allowed)";
+                        }
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Skill Offered
+                    Row(
+                      children: const [
+                        Text(
+                          'Skill Offered',
+                          style: TextStyle(fontSize: 16, color: Colors.black87),
+                        ),
+                      ],
+                    ),
+                    TextFormField(
+                      controller: offerController,
+                      decoration: const InputDecoration(
+                        hintText: 'Skill you offer',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(20)),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return "Please enter a skill you offer";
+                        } else if (!skillRegex.hasMatch(value.trim())) {
+                          return "Enter a valid skill (letters, +, -, . allowed)";
+                        }
+                        return null;
+                      },
+                    ),
+
+                    const SizedBox(height: 30),
+
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF123b53),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          elevation: 6,
+                        ),
+                        onPressed: () {
+                          if (_formKey.currentState!.validate()) {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ProfileEditScreen(
+                                  requiredSkill: requireController.text.trim(),
+                                  offeredSkill: offerController.text.trim(),
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                        child: const Text("NEXT",
+                            style: TextStyle(color: Colors.white)),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Color(0xFF5D1A6A),
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.white70,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: "Chat"),
-          BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: "Match"),
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: "Community"),
-          BottomNavigationBarItem(icon: Icon(Icons.meeting_room), label: "Study Room"),
-        ],
-        currentIndex: 0,
-        onTap: (index) {
-          
-        },
       ),
     );
   }

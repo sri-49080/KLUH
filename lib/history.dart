@@ -36,12 +36,12 @@ class History extends StatelessWidget {
         title: Text(
           'History',
           style: TextStyle(
-            fontSize: 32,
-            fontStyle: FontStyle.italic,
+            fontSize: 30,
+            //fontStyle: FontStyle.italic,
             color: Colors.white,
           ),
         ),
-        backgroundColor: Color(0xFF56195B),
+        backgroundColor: Color(0xFF123b53),
         iconTheme: IconThemeData(color: Colors.white),
       ),
       body: ListView.builder(

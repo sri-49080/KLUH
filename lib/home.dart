@@ -1,15 +1,12 @@
-import 'package:barter_system/chatbot.dart';
-import 'package:barter_system/communities.dart';
-import 'package:barter_system/history.dart';
-import 'package:barter_system/login.dart';
-import 'package:barter_system/profile.dart';
-//import 'package:barter_system/add.dart';
-import 'package:barter_system/chats.dart';
-import 'package:barter_system/reviews.dart';
-import 'package:barter_system/skillpopup.dart';
-import 'package:barter_system/studyroom.dart';
-import 'package:barter_system/community.dart';
-import 'package:barter_system/notification.dart';
+import 'package:skillsocket/chatbot.dart';
+import 'package:skillsocket/history.dart';
+import 'package:skillsocket/login.dart';
+import 'package:skillsocket/profile.dart';
+import 'package:skillsocket/reviews.dart';
+import 'package:skillsocket/notification.dart';
+import 'package:skillsocket/services/todo_service.dart';
+import 'package:skillsocket/services/event_service.dart';
+import 'package:skillsocket/services/user_service.dart'; // ✅ Added
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
@@ -105,30 +102,66 @@ class _MyHomePageState extends State<MyHomePage> {
   CalendarFormat _calendarFormat = CalendarFormat.month;
   final TextEditingController _todoController = TextEditingController();
   final TextEditingController _eventController = TextEditingController();
-  final int _selectedIndex = 0;
-
   final Map<DateTime, List<Map<String, dynamic>>> _todos = {};
-  final Map<DateTime, List<String>> _events = {};
+  final Map<DateTime, List<Map<String, dynamic>>> _events = {};
+
+  String? _profileImageUrl; // ✅ Added variable
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTodosForDate(_focusedDay);
+    _loadEventsForDate(_focusedDay);
+    _fetchProfileImage(); // ✅ Fetch image on load
+  }
+
+  Future<void> _fetchProfileImage() async {
+    try {
+      final userData = await UserService.getUserProfile(); // ✅ Adjust if needed
+      if (userData != null &&
+          userData['profileImage'] != null &&
+          userData['profileImage'].toString().isNotEmpty) {
+        setState(() {
+          _profileImageUrl = userData['profileImage'];
+        });
+      }
+    } catch (e) {
+      print('Error fetching profile image: $e');
+    }
+  }
 
   DateTime _getDateKey(DateTime date) {
     return DateTime(date.year, date.month, date.day);
   }
 
-  final List<Widget> _pages = [
-    MyHomePage(
-      title: 'App name',
-    ),
-    Chats(),
-    SkillMatchApp(),
-    Community(),
-    StudyRoom(),
-  ];
+  // Load todos from backend for specific date
+  Future<void> _loadTodosForDate(DateTime date) async {
+    try {
+      final todos = await TodoService.getTodos(date);
+      if (todos != null) {
+        final dateKey = _getDateKey(date);
+        setState(() {
+          _todos[dateKey] = todos;
+        });
+      }
+    } catch (e) {
+      print('Error loading todos: $e');
+    }
+  }
 
-  void _onItemTapped(int index) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => _pages[index]),
-    );
+  // Load events from backend for specific date
+  Future<void> _loadEventsForDate(DateTime date) async {
+    try {
+      final events = await EventService.getEvents(date);
+      if (events != null) {
+        final dateKey = _getDateKey(date);
+        setState(() {
+          _events[dateKey] = events;
+        });
+      }
+    } catch (e) {
+      print('Error loading events: $e');
+    }
   }
 
   void _showAddEventDialog() {
@@ -147,16 +180,41 @@ class _MyHomePageState extends State<MyHomePage> {
             child: const Text("Cancel"),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               if (_eventController.text.isEmpty) return;
+
+              final title = _eventController.text;
               final dateKey = _getDateKey(_selectedDay ?? _focusedDay);
-              setState(() {
-                _events[dateKey] = [
-                  ...(_events[dateKey] ?? []),
-                  _eventController.text
-                ];
-              });
               Navigator.pop(context);
+
+              try {
+                final newEvent = await EventService.createEvent(dateKey, title);
+                if (newEvent != null) {
+                  setState(() {
+                    _events[dateKey] = [...(_events[dateKey] ?? []), newEvent];
+                  });
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Failed to add event. Please try again.'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                print('Error adding event: $e');
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content:
+                          Text('Network error. Please check your connection.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text("Add"),
           ),
@@ -173,400 +231,456 @@ class _MyHomePageState extends State<MyHomePage> {
 
     return Scaffold(
       drawer: Drawer(
-        backgroundColor: const Color(0xFF7E4682),
+        backgroundColor: const Color(0xFF123b53),
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
             DrawerHeader(
                 child: Row(
               children: [
-                /*IconButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                  },
-                  icon: Icon(Icons.arrow_back_ios_new_rounded),
-                  color: Color.fromARGB(255, 255, 255, 255),
-                ),*/
                 Expanded(
                   child: Align(
                     alignment: Alignment.center,
                     child: Text(
-                      'App Name',
+                      'SkillSocket',
                       style: TextStyle(
                           color: Color.fromARGB(255, 255, 255, 255),
-                          fontSize: 45),
+                          fontSize: 39),
                     ),
                   ),
                 ),
               ],
             )),
             ListTile(
-              leading: Icon(
-                Icons.history,
-                color: Color.fromARGB(255, 255, 255, 255),
-              ),
-              title: Text(
-                'History',
-                style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
-              ),
+              leading: const Icon(Icons.history, color: Colors.white),
+              title: const Text('History',
+                  style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => History()));
+                    MaterialPageRoute(builder: (context) => const History()));
               },
             ),
-            Divider(color: Colors.white, thickness: 1),
+            const Divider(color: Colors.white, thickness: 1),
             ListTile(
-              leading: Icon(
-                Icons.groups,
-                color: Color.fromARGB(255, 255, 255, 255),
-              ),
-              title: Text(
-                'Communities',
-                style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
-              ),
+              leading: const Icon(Icons.reviews, color: Colors.white),
+              title: const Text('Reviews',
+                  style: TextStyle(color: Colors.white)),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => Communities()));
+                    MaterialPageRoute(builder: (context) => const Reviews()));
               },
             ),
-            Divider(color: Colors.white, thickness: 1),
+            const Divider(color: Colors.white, thickness: 1),
             ListTile(
-              leading: Icon(
-                Icons.reviews,
-                color: Color.fromARGB(255, 255, 255, 255),
-              ),
-              title: Text(
-                'Reviews',
-                style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
-              ),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => Reviews()));
-              },
-            ),
-            Divider(color: Colors.white, thickness: 1),
-            ListTile(
-                leading: Icon(
-                  Icons.logout,
-                  color: Color.fromARGB(255, 255, 255, 255),
-                ),
-                title: Text(
-                  'Sign Out',
-                  style: TextStyle(color: Color.fromARGB(255, 255, 255, 255)),
-                ),
+                leading: const Icon(Icons.logout, color: Colors.white),
+                title: const Text('Sign Out',
+                    style: TextStyle(color: Colors.white)),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(context,
                       MaterialPageRoute(builder: (context) => LoginScreen()));
                 }),
-            Divider(color: Colors.white, thickness: 1),
+            const Divider(color: Colors.white, thickness: 1),
           ],
         ),
       ),
       appBar: AppBar(
         centerTitle: true,
-        title: Text(
-          'APP NAME',
-          style: TextStyle(
-              fontSize: 32,
-              fontStyle: FontStyle.italic,
-              color: Color.fromARGB(255, 255, 255, 255)),
+        title: const Text(
+          'SkillSocket',
+          style: TextStyle(fontSize: 20, color: Colors.white),
         ),
-        backgroundColor: Color(0xFF56195B),
-        iconTheme:
-            IconThemeData(color: const Color.fromARGB(255, 255, 255, 255)),
+        backgroundColor: const Color(0xFF123b53),
+        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
           IconButton(
               onPressed: () {
                 Navigator.push(context,
                     MaterialPageRoute(builder: (context) => Notifications()));
               },
-              icon: Icon(Icons.notifications)),
+              icon: const Icon(Icons.notifications)),
           IconButton(
-              onPressed: () {
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (context) => Profile()));
-              },
-              icon: Icon(Icons.person_rounded)),
+            onPressed: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => Profile()));
+            },
+            icon: _profileImageUrl != null
+                ? CircleAvatar(
+                    backgroundImage: NetworkImage(_profileImageUrl!),
+                    radius: 14,
+                  )
+                : const Icon(Icons.person_rounded),
+          ),
         ],
       ),
       body: SingleChildScrollView(
-          child: Padding(
-              padding: const EdgeInsets.all(12.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(12.0),
-                    child: TableCalendar(
-                      focusedDay: _focusedDay,
-                      firstDay: DateTime.utc(1970, 1, 1),
-                      lastDay: DateTime.utc(2100, 12, 31),
-                      selectedDayPredicate: (day) =>
-                          isSameDay(_selectedDay, day),
-                      onDaySelected: (selectedDay, focusedDay) {
-                        setState(() {
-                          _selectedDay = selectedDay;
-                          _focusedDay = focusedDay;
-                        });
-                      },
-                      eventLoader: (day) {
-                        return _events[_getDateKey(day)] ?? [];
-                      },
-                      calendarFormat: _calendarFormat,
-                      onFormatChanged: (format) {
-                        setState(() {
-                          _calendarFormat = format;
-                        });
-                      },
-                      availableCalendarFormats: const {
-                        CalendarFormat.month: 'Month',
-                        CalendarFormat.week: 'Week',
-                      },
-                      calendarStyle: const CalendarStyle(
-                        selectedDecoration: BoxDecoration(
-                          color: Color(0xFFECC9EE),
-                          shape: BoxShape.circle,
-                        ),
-                        todayDecoration: BoxDecoration(
-                          color: Color(0xFF56195B),
-                          shape: BoxShape.circle,
-                        ),
-                        markerDecoration: BoxDecoration(
-                          color: Color(0xFF56195B),
-                          shape: BoxShape.circle,
-                        ),
+        child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: TableCalendar(
+                    focusedDay: _focusedDay,
+                    firstDay: DateTime.utc(1970, 1, 1),
+                    lastDay: DateTime.utc(2100, 12, 31),
+                    selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+                    onDaySelected: (selectedDay, focusedDay) {
+                      setState(() {
+                        _selectedDay = selectedDay;
+                        _focusedDay = focusedDay;
+                      });
+                      _loadTodosForDate(selectedDay);
+                      _loadEventsForDate(selectedDay);
+                    },
+                    eventLoader: (day) {
+                      final events = _events[_getDateKey(day)] ?? [];
+                      return events
+                          .map((event) => event['title'] ?? '')
+                          .toList();
+                    },
+                    calendarFormat: _calendarFormat,
+                    onFormatChanged: (format) {
+                      setState(() {
+                        _calendarFormat = format;
+                      });
+                    },
+                    availableCalendarFormats: const {
+                      CalendarFormat.month: 'Month',
+                      CalendarFormat.week: 'Week',
+                    },
+                    calendarStyle: const CalendarStyle(
+                      selectedDecoration: BoxDecoration(
+                        color: Color.fromARGB(255, 178, 211, 240),
+                        shape: BoxShape.circle,
+                      ),
+                      todayDecoration: BoxDecoration(
+                        color: Color(0xFF123b53),
+                        shape: BoxShape.circle,
+                      ),
+                      markerDecoration: BoxDecoration(
+                        color: Colors.deepPurple,
+                        shape: BoxShape.circle,
                       ),
                     ),
                   ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Events on ${dateKey.toLocal().toString().split(' ')[0]}",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle,
+                            color: Colors.deepPurple),
+                        onPressed: _showAddEventDialog,
+                      ),
+                    ],
+                  ),
+                ),
+                if (todaysEvents.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Events on ${dateKey.toLocal().toString().split(' ')[0]}",
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle,
-                              color: Colors.deepPurple),
-                          onPressed: _showAddEventDialog,
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (todaysEvents.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12.0),
-                      child: Column(
-                        children: todaysEvents
-                            .map((event) => ListTile(
-                                  leading: const Icon(Icons.event),
-                                  title: Text(event),
-                                ))
-                            .toList(),
-                      ),
-                    )
-                  else
-                    const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: Text("No events for today."),
-                    ),
-                  Divider(thickness: 1),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12.0, vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Events',
-                            style: TextStyle(
-                                fontSize: 20, fontWeight: FontWeight.bold)),
-                        IconButton(
-                          icon: const Icon(Icons.add),
-                          onPressed: () {
-                            showDialog(
-                              context: context,
-                              builder: (context) {
-                                TextEditingController eventController =
-                                    TextEditingController();
-                                return AlertDialog(
-                                  title: const Text('Add Event'),
-                                  content: TextField(
-                                    controller: eventController,
-                                    decoration: const InputDecoration(
-                                        labelText: 'Event title'),
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () {
-                                        Navigator.pop(context);
-                                      },
-                                      child: const Text('Cancel'),
+                    child: Column(
+                      children: todaysEvents.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final event = entry.value;
+                        return ListTile(
+                          leading: const Icon(Icons.event),
+                          title: Text(event['title'] ?? 'No title'),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit,
+                                    color: Colors.deepPurple),
+                                onPressed: () {
+                                  TextEditingController editController =
+                                      TextEditingController(
+                                          text: event['title'] ?? '');
+                                  showDialog(
+                                    context: context,
+                                    builder: (context) => AlertDialog(
+                                      title: const Text("Edit Event"),
+                                      content:
+                                          TextField(controller: editController),
+                                      actions: [
+                                        TextButton(
+                                            onPressed: () =>
+                                                Navigator.pop(context),
+                                            child: const Text("Cancel")),
+                                        TextButton(
+                                          onPressed: () async {
+                                            if (editController.text.isEmpty)
+                                              return;
+                                            final eventId = event['_id'];
+                                            if (eventId == null) {
+                                              Navigator.pop(context);
+                                              return;
+                                            }
+                                            Navigator.pop(context);
+                                            try {
+                                              final updatedEvent =
+                                                  await EventService
+                                                      .updateEvent(eventId,
+                                                          editController.text);
+                                              if (updatedEvent != null) {
+                                                setState(() {
+                                                  final updatedEvents =
+                                                      [...todaysEvents];
+                                                  updatedEvents[index] =
+                                                      updatedEvent;
+                                                  _events[dateKey] =
+                                                      updatedEvents;
+                                                });
+                                              } else {
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(context)
+                                                      .showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                          'Failed to update event. Please try again.'),
+                                                      backgroundColor:
+                                                          Colors.red,
+                                                    ),
+                                                  );
+                                                }
+                                              }
+                                            } catch (e) {
+                                              print('Error updating event: $e');
+                                              if (mounted) {
+                                                ScaffoldMessenger.of(context)
+                                                    .showSnackBar(
+                                                  const SnackBar(
+                                                    content: Text(
+                                                        'Network error. Please check your connection.'),
+                                                    backgroundColor: Colors.red,
+                                                  ),
+                                                );
+                                              }
+                                            }
+                                          },
+                                          child: const Text("Save"),
+                                        ),
+                                      ],
                                     ),
-                                    TextButton(
-                                      onPressed: () {
-                                        if (eventController.text.isNotEmpty) {
-                                          setState(() {
-                                            _events[dateKey] = [
-                                              ...todaysEvents,
-                                              eventController.text
-                                            ];
-                                          });
-                                        }
-                                        Navigator.pop(context);
-                                      },
-                                      child: const Text('Add'),
-                                    ),
-                                  ],
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                  ...todaysEvents.asMap().entries.map((entry) {
-                    final index = entry.key;
-                    final event = entry.value;
-                    return ListTile(
-                      title: Text(event),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.edit, color: Colors.blue),
-                            onPressed: () {
-                              TextEditingController editController =
-                                  TextEditingController(text: event);
-                              showDialog(
-                                context: context,
-                                builder: (context) {
-                                  return AlertDialog(
-                                    title: const Text('Edit Event'),
-                                    content: TextField(
-                                      controller: editController,
-                                      decoration: const InputDecoration(
-                                          labelText: 'Edit event'),
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () => Navigator.pop(context),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      TextButton(
-                                        onPressed: () {
-                                          setState(() {
-                                            todaysEvents[index] =
-                                                editController.text;
-                                            _events[dateKey] = [
-                                              ...todaysEvents
-                                            ];
-                                          });
-                                          Navigator.pop(context);
-                                        },
-                                        child: const Text('Save'),
-                                      ),
-                                    ],
                                   );
                                 },
-                              );
-                            },
+                              ),
+                              IconButton(
+                                icon:
+                                    const Icon(Icons.delete, color: Colors.red),
+                                onPressed: () async {
+                                  final eventId = event['_id'];
+                                  if (eventId == null) return;
+                                  try {
+                                    final success =
+                                        await EventService.deleteEvent(eventId);
+                                    if (success) {
+                                      setState(() {
+                                        final updatedEvents =
+                                            List<Map<String, dynamic>>.from(
+                                                todaysEvents);
+                                        updatedEvents.removeAt(index);
+                                        _events[dateKey] = updatedEvents;
+                                      });
+                                    } else {
+                                      if (mounted) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                                'Failed to delete event. Please try again.'),
+                                            backgroundColor: Colors.red,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  } catch (e) {
+                                    print('Error deleting event: $e');
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content: Text(
+                                              'Network error. Please check your connection.'),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                              ),
+                            ],
                           ),
-                          IconButton(
-                            icon: const Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              setState(() {
-                                todaysEvents.removeAt(index);
-                                _events[dateKey] = [...todaysEvents];
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                  TodoList(
-                    selectedDate: dateKey,
-                    controller: _todoController,
-                    todos: todaysTodos,
-                    onAdd: () {
-                      if (_todoController.text.isNotEmpty) {
-                        setState(() {
-                          _todos[dateKey] = [
-                            ...todaysTodos,
-                            {"task": _todoController.text, "done": false}
-                          ];
-                          _todoController.clear();
-                        });
-                      }
-                    },
-                    onToggle: (index, value) {
-                      setState(() {
-                        final updatedTodos = [...todaysTodos];
-                        updatedTodos[index] = {
-                          ...updatedTodos[index],
-                          'done': value,
-                        };
-                        _todos[dateKey] = updatedTodos;
-                      });
-                    },
-                    onDelete: (index) {
-                      setState(() {
-                        final updatedTodos =
-                            List<Map<String, dynamic>>.from(todaysTodos);
-                        updatedTodos.removeAt(index);
-                        _todos[dateKey] = updatedTodos;
-                      });
-                    },
-                  ),
-                  Padding(
-                      padding: EdgeInsets.all(25.0),
+                        );
+                      }).toList(),
                     ),
-                ],
-                
-              )
-              ),
-              ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-              context, MaterialPageRoute(builder: (context) => ChatbotPage()));
-        },
-        child: Icon(Icons.android),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: const Color(0xFF56195B),
-        selectedItemColor: const Color(0xFFECC9EE),
-        unselectedItemColor: Colors.white,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.chat_bubble_rounded), label: 'Chats'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.add_circle_outlined), label: 'ADD'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.groups_rounded), label: 'Community'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.menu_book_rounded), label: 'Study Room'),
-        ],
-      ),
-    );
-  }
+                  )
+                else
+                  const Padding(
+                    padding: EdgeInsets.all(8.0),
+                    child: Text("No events for today."),
+                  ),
+                TodoList(
+                  selectedDate: dateKey,
+                  controller: _todoController,
+                  todos: todaysTodos,
+                  onAdd: () async {
+                    if (_todoController.text.isNotEmpty) {
+                      final task = _todoController.text;
+                      _todoController.clear();
+                      try {
+                        final newTodo =
+                            await TodoService.createTodo(dateKey, task);
+                        if (newTodo != null) {
+                          setState(() {
+                            _todos[dateKey] = [...todaysTodos, newTodo];
+                          });
+                        } else {
+                          // Show error message
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Failed to add todo. Please try again.'),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        print('Error adding todo: $e');
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Network error. Please check your connection.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    }
+                  },
+                  onToggle: (index, value) async {
+                    final todo = todaysTodos[index];
+                    final todoId = todo['_id'];
 
-  ListTile _buildDrawerItem(IconData icon, String title) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.white),
-      title: Text(title, style: const TextStyle(color: Colors.white)),
-      onTap: () => Navigator.pop(context),
+                    if (todoId == null) {
+                      print('Todo ID is null, cannot update');
+                      return;
+                    }
+
+                    try {
+                      final updatedTodo =
+                          await TodoService.updateTodo(todoId, done: value);
+                      if (updatedTodo != null) {
+                        setState(() {
+                          final updatedTodos = [...todaysTodos];
+                          updatedTodos[index] = updatedTodo;
+                          _todos[dateKey] = updatedTodos;
+                        });
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Failed to update todo. Please try again.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      print('Error updating todo: $e');
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Network error. Please check your connection.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                  onDelete: (index) async {
+                    final todo = todaysTodos[index];
+                    final todoId = todo['_id'];
+
+                    if (todoId == null) {
+                      print('Todo ID is null, cannot delete');
+                      return;
+                    }
+
+                    try {
+                      final success = await TodoService.deleteTodo(todoId);
+                      if (success) {
+                        setState(() {
+                          final updatedTodos =
+                              List<Map<String, dynamic>>.from(todaysTodos);
+                          updatedTodos.removeAt(index);
+                          _todos[dateKey] = updatedTodos;
+                        });
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Failed to delete todo. Please try again.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
+                    } catch (e) {
+                      print('Error deleting todo: $e');
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                'Network error. Please check your connection.'),
+                            backgroundColor: Colors.red,
+                          ),
+                        );
+                      }
+                    }
+                  },
+                ),
+                const Padding(padding: EdgeInsets.all(25.0)),
+              ],
+            )),
+      ),
+      floatingActionButton: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          image: const DecorationImage(
+            image: AssetImage('assets/new-chatbot-skyblue.png'),
+            fit: BoxFit.cover,
+          ),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(30),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(30),
+            onTap: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => ChatbotScreen()));
+            },
+          ),
+        ),
+      ),
     );
   }
 }

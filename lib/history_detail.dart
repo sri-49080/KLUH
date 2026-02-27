@@ -20,7 +20,7 @@ class HistoryDetailPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(data['title'] ?? "Detail",style: TextStyle(color: Colors.white),),
-        backgroundColor: Color(0xFF56195B),
+        backgroundColor: Color(0xFF123b53),
         iconTheme: IconThemeData(color: Colors.white),
       ),
       body: Padding(
@@ -37,7 +37,7 @@ class HistoryDetailPage extends StatelessWidget {
                   chartType: ChartType.ring,
                   chartRadius: 150,
                   ringStrokeWidth: 30,
-                  colorList: [Color(0xFFA86D9F), Color(0xFFECC9EE)],
+                  colorList: [Color(0xFF66B7D2), Color(0xFFB6E1F0)],
                   chartValuesOptions: ChartValuesOptions(
                     showChartValuesInPercentage: true,
                     showChartValueBackground: false,

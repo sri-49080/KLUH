@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "832774177950",
-    "project_id": "bartersys-1ddbe",
-    "storage_bucket": "bartersys-1ddbe.firebasestorage.app"
+    "project_number": "546798635656",
+    "project_id": "skillsocket-a0759",
+    "storage_bucket": "skillsocket-a0759.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:832774177950:android:8ff973bfccb1196493678f",
+        "mobilesdk_app_id": "1:546798635656:android:28cfe200dbb2011dd22d3d",
         "android_client_info": {
-          "package_name": "com.example.barter_system"
+          "package_name": "com.example.skillsocket"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyCqKFlNdv7sQt5N9vGhFHEOJn-1qdADPFo"
+          "current_key": "AIzaSyCwXTCAujmS-QDC5izCpdD3DT4RgUQpQR8"
         }
       ],
       "services": {
